@@ -1,0 +1,6 @@
+cradle:
+  cabal:
+    - path: "app/Main.hs"
+      component: "lamb:exe:lamb"
+    - path: "app/Lamb.hs"
+      component: "lamb:exe:lamb"
