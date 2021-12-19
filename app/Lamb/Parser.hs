@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 {-|
   Module      : Lamb
   Description : Small lambda calculus interpretor
@@ -5,38 +7,34 @@
   Maintainer  : megabytesofrem
   Portability : POSIX
 -}
+module Lamb.Parser
+  ( parse
+  ) where
 
-{-# LANGUAGE OverloadedStrings #-}
-
-module Lamb
-  ( parse,
-  )
-where
+-- AST
+import           Lamb.AST                       ( LambdaAbstraction(..)
+                                                , LambdaExpr(..)
+                                                , Variable(..)
+                                                )
 
 -- For randomness
-import Control.Monad.Random (MonadRandom (getRandomR))
-import Data.Functor ((<&>))
-import qualified Data.Text as T
-import Text.Parsec
-import Text.Parsec.Char
-import Text.Parsec.Text (Parser)
-import qualified Text.Parsec.Text as P
+import           Control.Monad.Random           ( MonadRandom(getRandomR) )
 
--- | A variable represented in the Lambda Calculus
-newtype Variable = Variable T.Text deriving (Eq, Show)
+import           Data.Functor                   ( (<&>) )
+import qualified Data.Text                     as T
 
-data LambdaExpr
-  = Number Int                            -- 12
-  | Application T.Text (Maybe LambdaExpr) -- f (f x)
-  deriving (Eq)
-
-data LambdaAbstraction
-  = Abstraction [Variable] LambdaExpr
-  deriving (Eq, Show)
-
-instance Show LambdaExpr where
-  show (Number n) = show n
-  show (Application s e) = "(Application " ++ T.unpack s ++ " " ++ show e ++ ")"
+import           Text.Parsec                    ( (<|>)
+                                                , char
+                                                , digit
+                                                , letter
+                                                , many1
+                                                , optionMaybe
+                                                , parse
+                                                , spaces
+                                                )
+import           Text.Parsec.Char
+import           Text.Parsec.Text               ( Parser )
+import qualified Text.Parsec.Text              as P
 
 -- | Parse a lambda abstraction
 parseAbstraction :: Parser LambdaAbstraction
@@ -46,7 +44,8 @@ parseAbstraction = do
   char '.'
   -- Parse the body
   expr <- T.pack <$> many1 letter
-  pure $ Abstraction [Variable $ T.pack head] $ Application expr $ Just (Number 5)
+  pure $ Abstraction [Variable $ T.pack head] $ Application expr $ Just
+    (Number 5)
 
 -- | Parse a function application
 -- f (f x)
@@ -70,7 +69,7 @@ parseExpr = parseLiteral <|> parseApplication
 
 parse' :: T.Text -> Either String LambdaAbstraction
 parse' input = case parse (spaces >> parseAbstraction) "lamb" input of
-  Left err -> Left $ "Error: " ++ show err
+  Left  err -> Left $ "Error: " ++ show err
   Right val -> pure val
 
 -- | Use MonadRandom to generate a random letter for use later when we
@@ -79,8 +78,7 @@ randomLetter :: (MonadRandom m) => m T.Text
 randomLetter = do
   r <- getRandomR (0, 25)
   pure $ T.singleton $ letters !! r
-  where
-    letters = "abcdefghijklmnopqrstuvwxyz"
+  where letters = "abcdefghijklmnopqrstuvwxyz"
 
 -- | Perform α-conversion/reduction to rename bound variables and avoid
 -- naming conflicts
