@@ -25,7 +25,11 @@ executable lamb
     main-is:          Main.hs
 
     -- Modules included in this executable, other than Main.
-    other-modules:    Lamb.AST, Lamb.Parser, Lamb.Pass
+    other-modules:    
+        Lamb.AST, 
+        Lamb.Parser,
+        Lamb.Exception, 
+        Lamb.Pass
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:

@@ -9,14 +9,24 @@
 -}
 
 module Lamb.Pass
-  ( checkFreeVariables )
+  ( -- Free variables
+    findVariables,
+    validateAbstraction,
+
+    -- Alpha reduction
+    alphaReduce,
+
+    -- Debugging
+    unwrapRight )
 where
 
 import Lamb.AST (LambdaAbstraction (Abstraction), LambdaExpr (..))
+import Lamb.Exception (LambException (..))
 
 import Data.Either (rights)
 import Data.Maybe
 
+import Control.Monad.Random (MonadRandom (getRandomR))
 import qualified Data.Text as T
 import Debug.Trace (trace)
 
@@ -29,14 +39,37 @@ checkExpr :: T.Text -> LambdaExpr -> (T.Text, Bool)
 checkExpr v (Var v')                  = (v, v == v')
 checkExpr v (Number _)                = (v, False)
 checkExpr v (Application f e')        = case e' of
+                                          -- if f is v, or calling checkExpr recursively on the sub expression
+                                          -- returns True then we have a successfully bound value
                                           Just e' -> (v, f == v || snd (checkExpr v e'))
                                           Nothing -> (v, False)
 
--- | Check the entire abstraction to make sure there are no free variables
--- |
--- Return a tuple with the expression, and a list of tuples corresponding to the variable
--- and a boolean representing whether it was bound.
-checkFreeVariables :: LambdaAbstraction -> (LambdaExpr, [(T.Text, Bool)])
-checkFreeVariables (Abstraction vs e) = (e, checked)
+-- | Return a tuple with the variable name and whether or not it was found
+findVariables :: LambdaAbstraction -> [(T.Text, Bool)]
+findVariables (Abstraction vs e) = map (`checkExpr` e) vs
+
+-- | Validate the abstraction and throw a `Control.Exception` if any
+-- free variables are found.
+validateAbstraction :: LambdaAbstraction -> Either LambException LambdaAbstraction
+validateAbstraction abs =
+  if (not . null) free
+    then Left FreeVariables
+    else Right abs
   where
-    checked  = map (`checkExpr` e) vs
+    -- list of all the variables, True means we have a bound variable
+    all = map snd $ findVariables abs
+    free = [x | x <- all, not x]
+
+-- | Use MonadRandom to generate a random letter for use later when we
+-- perform α-conversion
+randomLetter :: (MonadRandom m) => m T.Text
+randomLetter = do
+  r <- getRandomR (0, 25)
+
+  pure . T.singleton $ letters !! r
+  where letters = "abcdefghijklmnopqrstuvwxyz"
+
+-- | Perform α-conversion/reduction to rename bound variables and avoid
+-- naming conflicts
+alphaReduce :: (MonadRandom m) => T.Text -> m T.Text
+alphaReduce a = randomLetter
