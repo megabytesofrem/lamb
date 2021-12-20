@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 {-|
-  Module      : Lamb
+  Module      : Lamb.Parser
   Description : Small lambda calculus interpretor
   License     : MIT
   Maintainer  : megabytesofrem
@@ -14,14 +14,17 @@ module Lamb.Parser
 -- AST
 import Lamb.AST (LambdaAbstraction (..), LambdaExpr (..))
 
+-- Pass
+import Lamb.Pass (checkFreeVariables)
+
 -- For randomness
 import Control.Monad.Random (MonadRandom (getRandomR))
 
 import Data.Functor ((<&>))
 import qualified Data.Text as T
 
-import Text.Parsec (char, digit, letter, many1, optionMaybe, parse, spaces,
-                    (<|>))
+import Text.Parsec (char, digit, letter, many1, option, optionMaybe, optional,
+                    parse, spaces, (<|>))
 import Text.Parsec.Char
 import Text.Parsec.Text (Parser)
 import qualified Text.Parsec.Text as P
@@ -40,9 +43,9 @@ parseAbstraction = do
 parseApplication :: Parser LambdaExpr
 parseApplication = do
   v <- letter <&> (: [])
-  spaces >> char '('
+  spaces >> optional (char '(')
   e <- optionMaybe parseExpr
-  char ')'
+  optional (char ')')
   pure $ Application (T.pack v) e
 
 -- | Parse a bound variable
@@ -62,26 +65,28 @@ parseLiteral = do
 
 -- | Parse an expression
 parseExpr :: Parser LambdaExpr
-parseExpr = parseLiteral <|> parseVariable <|> parseApplication 
+parseExpr = parseLiteral <|> parseVariable <|> parseApplication
+
 
 parse' :: T.Text -> Either String LambdaAbstraction
 parse' input = case parse (spaces >> parseAbstraction) "lamb" input of
   Left  err -> Left $ "Error: " ++ show err
   Right val -> pure val
 
-
 -- | Use MonadRandom to generate a random letter for use later when we
 -- perform α-conversion
 randomLetter :: (MonadRandom m) => m T.Text
 randomLetter = do
   r <- getRandomR (0, 25)
-  pure $ T.singleton $ letters !! r
+
+  pure . T.singleton $ letters !! r
   where letters = "abcdefghijklmnopqrstuvwxyz"
 
 -- | Perform α-conversion/reduction to rename bound variables and avoid
 -- naming conflicts
 alphaReduce :: (MonadRandom m) => T.Text -> m T.Text
 alphaReduce a = randomLetter
+
 
 -- -- | Apply an α-conversion to all bound variables in the lambda abstraction
 -- -- | and return a new lambda abstraction

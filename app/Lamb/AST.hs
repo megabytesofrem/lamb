@@ -1,8 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 {-|
-  Module      : Lamb
-  Description : Small lambda calculus interpretor
+  Module      : Lamb.AST
+  Description : AST representation data types
   License     : MIT
   Maintainer  : megabytesofrem
   Portability : POSIX
@@ -24,5 +24,5 @@ data LambdaAbstraction = Abstraction [T.Text] LambdaExpr
 
 instance Show LambdaExpr where
   show (Number n)        = show n
-  show (Var v)           = show v
+  show (Var v)           = "(Var " ++ show v ++ ")"
   show (Application s e) = "(Application " ++ T.unpack s ++ " " ++ show e ++ ")"
