@@ -1,10 +1,4 @@
 cradle:
   cabal:
-    - path: "app/Main.hs"
-      component: "lamb:exe:lamb"
-
-    - path: "app/Lamb/Parser.hs"
-      component: "lamb:exe:lamb"
-
-    - path: "app/Lamb/AST.hs"
+    - path: "app/"
       component: "lamb:exe:lamb"

@@ -10,23 +10,19 @@
 module Lamb.AST
   ( LambdaExpr(..)
   , LambdaAbstraction(..)
-  , Variable(..)
   ) where
 
-import qualified Data.Text                     as T
+import qualified Data.Text as T
 
--- | A variable represented in the Lambda Calculus
-newtype Variable = Variable T.Text deriving (Eq, Show)
+data LambdaExpr = Number Int -- 12
+                | Var T.Text
+                | Application T.Text (Maybe LambdaExpr) -- f (f x)
+                deriving (Eq)
 
-data LambdaExpr
-  = Number Int -- 12
-  | Application T.Text (Maybe LambdaExpr) -- f (f x)
-  deriving (Eq)
-
-data LambdaAbstraction = Abstraction [Variable] LambdaExpr
+data LambdaAbstraction = Abstraction [T.Text] LambdaExpr
   deriving (Eq, Show)
 
 instance Show LambdaExpr where
-  show (Number n) = show n
-  show (Application s e) =
-    "(Application " ++ T.unpack s ++ " " ++ show e ++ ")"
+  show (Number n)        = show n
+  show (Var v)           = show v
+  show (Application s e) = "(Application " ++ T.unpack s ++ " " ++ show e ++ ")"

@@ -8,33 +8,23 @@
   Portability : POSIX
 -}
 module Lamb.Parser
-  ( parse
+  ( parse'
   ) where
 
 -- AST
-import           Lamb.AST                       ( LambdaAbstraction(..)
-                                                , LambdaExpr(..)
-                                                , Variable(..)
-                                                )
+import Lamb.AST (LambdaAbstraction (..), LambdaExpr (..))
 
 -- For randomness
-import           Control.Monad.Random           ( MonadRandom(getRandomR) )
+import Control.Monad.Random (MonadRandom (getRandomR))
 
-import           Data.Functor                   ( (<&>) )
-import qualified Data.Text                     as T
+import Data.Functor ((<&>))
+import qualified Data.Text as T
 
-import           Text.Parsec                    ( (<|>)
-                                                , char
-                                                , digit
-                                                , letter
-                                                , many1
-                                                , optionMaybe
-                                                , parse
-                                                , spaces
-                                                )
-import           Text.Parsec.Char
-import           Text.Parsec.Text               ( Parser )
-import qualified Text.Parsec.Text              as P
+import Text.Parsec (char, digit, letter, many1, optionMaybe, parse, spaces,
+                    (<|>))
+import Text.Parsec.Char
+import Text.Parsec.Text (Parser)
+import qualified Text.Parsec.Text as P
 
 -- | Parse a lambda abstraction
 parseAbstraction :: Parser LambdaAbstraction
@@ -43,19 +33,26 @@ parseAbstraction = do
   head <- many1 letter
   char '.'
   -- Parse the body
-  expr <- T.pack <$> many1 letter
-  pure $ Abstraction [Variable $ T.pack head] $ Application expr $ Just
-    (Number 5)
+  Abstraction (T.chunksOf 1 $ T.pack head) <$> parseExpr
 
 -- | Parse a function application
 -- f (f x)
 parseApplication :: Parser LambdaExpr
 parseApplication = do
-  i' <- letter <&> (: [])
-  spaces
-
+  v <- letter <&> (: [])
+  spaces >> char '('
   e <- optionMaybe parseExpr
-  pure $ Application (T.pack i') e
+  char ')'
+  pure $ Application (T.pack v) e
+
+-- | Parse a bound variable
+-- Due to conflicting between function application and variables,
+-- variables *must* be prefixed with a :.
+parseVariable :: Parser LambdaExpr
+parseVariable = do
+  char ':'
+  v <- letter <&> (: [])
+  pure $ Var (T.pack v)
 
 -- | Parse a literal number
 parseLiteral :: Parser LambdaExpr
@@ -65,12 +62,13 @@ parseLiteral = do
 
 -- | Parse an expression
 parseExpr :: Parser LambdaExpr
-parseExpr = parseLiteral <|> parseApplication
+parseExpr = parseLiteral <|> parseVariable <|> parseApplication 
 
 parse' :: T.Text -> Either String LambdaAbstraction
 parse' input = case parse (spaces >> parseAbstraction) "lamb" input of
   Left  err -> Left $ "Error: " ++ show err
   Right val -> pure val
+
 
 -- | Use MonadRandom to generate a random letter for use later when we
 -- perform α-conversion
@@ -82,8 +80,8 @@ randomLetter = do
 
 -- | Perform α-conversion/reduction to rename bound variables and avoid
 -- naming conflicts
-alphaReduce :: (MonadRandom m) => Variable -> m Variable
-alphaReduce a = Variable <$> randomLetter
+alphaReduce :: (MonadRandom m) => T.Text -> m T.Text
+alphaReduce a = randomLetter
 
 -- -- | Apply an α-conversion to all bound variables in the lambda abstraction
 -- -- | and return a new lambda abstraction
